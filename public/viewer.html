@@ -3,19 +3,24 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Screen Share - Viewer</title>
+  <title>Dante Screen - Viewer</title>
   <link rel="stylesheet" href="/styles.css" />
 </head>
 <body>
   <main>
-    <h1>Screen Share (Viewer)</h1>
+    <h1>Dante Screen (Viewer)</h1>
     <p id="info"></p>
-    <video id="remote" autoplay playsinline controls></video>
+    <div id="overlay" style="display:none; margin: 12px 0;">
+      <button id="play">Tap to start</button>
+    </div>
+    <video id="remote" autoplay playsinline muted></video>
   </main>
 
   <script>
     const info = document.getElementById('info');
     const video = document.getElementById('remote');
+    const overlay = document.getElementById('overlay');
+    const playBtn = document.getElementById('play');
     const params = new URLSearchParams(location.search);
     const DEFAULT_ROOM = 'live';
     const room = params.get('room') || DEFAULT_ROOM;
@@ -33,7 +38,11 @@
           const msg = JSON.parse(ev.data);
           if (msg.type === 'offer') {
             pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
-            pc.ontrack = (e) => { video.srcObject = e.streams[0]; };
+            pc.ontrack = (e) => {
+              video.srcObject = e.streams[0];
+              // Try autoplay on mobile
+              video.play().catch(() => { overlay.style.display = 'block'; });
+            };
             pc.onicecandidate = (e) => {
               if (e.candidate) ws.send(JSON.stringify({ type: 'ice-candidate', candidate: e.candidate }));
             };
@@ -55,6 +64,11 @@
         };
       });
     }
+
+    playBtn?.addEventListener('click', async () => {
+      try { await video.play(); overlay.style.display = 'none'; } catch {}
+    });
+    video.addEventListener('click', async () => { try { await video.play(); } catch {} });
 
     (async () => {
       if (!room) return;

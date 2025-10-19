@@ -3,19 +3,19 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Screen Share - Sender</title>
+  <title>Dante Screen - Sender</title>
   <link rel="stylesheet" href="/styles.css" />
 </head>
 <body>
   <main>
-    <h1>Screen Share (Sender)</h1>
+    <h1>Dante Screen (Sender)</h1>
     <label>
       Room ID
       <input id="room" maxlength="24" />
     </label>
     <div class="buttons">
-      <button id="start">Start sharing</button>
-      <button id="stop" disabled>Stop</button>
+      <button id="start">Start Dante Screen</button>
+      <button id="stop" disabled>Stop Dante Screen</button>
       <button id="copy" title="Copy viewer link">Copy viewer link</button>
     </div>
     <p id="status">Idle</p>
@@ -59,7 +59,7 @@
           const msg = JSON.parse(ev.data);
           if (msg.type === 'answer') {
             await pc.setRemoteDescription(new RTCSessionDescription({ type: 'answer', sdp: msg.sdp }));
-            updateStatus('Connected to viewer');
+            updateStatus('Viewer connected');
           } else if (msg.type === 'ice-candidate' && msg.candidate) {
             try { await pc.addIceCandidate(msg.candidate); } catch {}
           } else if (msg.type === 'viewer-ready') {
@@ -79,6 +79,7 @@
         await connectWS();
         stream = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 15 }, audio: true });
         preview.srcObject = stream;
+        updateStatus('Dante Screen live');
 
         pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
         stream.getTracks().forEach(t => pc.addTrack(t, stream));
@@ -90,13 +91,13 @@
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
         ws.send(JSON.stringify({ type: 'offer', sdp: offer.sdp }));
-        updateStatus('Sharing... send link to viewer');
+        updateStatus('Live — copy viewer link to watch');
         stopBtn.disabled = false;
 
         stream.getVideoTracks()[0]?.addEventListener('ended', stopSharing);
       } catch (e) {
         console.error(e);
-        updateStatus('Failed to start');
+        updateStatus('Failed to start Dante Screen');
         startBtn.disabled = false; roomEl.disabled = false;
       }
     }
@@ -108,7 +109,7 @@
       try { ws?.close(); } catch {}
       pc = null; ws = null; stream = null;
       startBtn.disabled = false; roomEl.disabled = false;
-      updateStatus('Stopped');
+      updateStatus('Dante Screen stopped');
     }
 
     startBtn.onclick = startSharing;
