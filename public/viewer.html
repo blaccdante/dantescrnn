@@ -17,11 +17,8 @@
     const info = document.getElementById('info');
     const video = document.getElementById('remote');
     const params = new URLSearchParams(location.search);
-    const room = params.get('room');
-
-    if (!room) {
-      info.textContent = 'No room specified';
-    }
+    const DEFAULT_ROOM = 'live';
+    const room = params.get('room') || DEFAULT_ROOM;
 
     let pc, ws;
 

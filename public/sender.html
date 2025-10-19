@@ -30,9 +30,9 @@
     const statusEl = document.getElementById('status');
     const preview = document.getElementById('preview');
 
-    const defaultRoom = Math.random().toString(36).slice(2, 8);
+    const DEFAULT_ROOM = 'live';
     const urlParams = new URLSearchParams(location.search);
-    roomEl.value = urlParams.get('room') || defaultRoom;
+    roomEl.value = urlParams.get('room') || DEFAULT_ROOM;
 
     let pc, ws, stream;
 
