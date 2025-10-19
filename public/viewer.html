@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Screen Share - Viewer</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <main>
+    <h1>Screen Share (Viewer)</h1>
+    <p id="info"></p>
+    <video id="remote" autoplay playsinline controls></video>
+  </main>
+
+  <script>
+    const info = document.getElementById('info');
+    const video = document.getElementById('remote');
+    const params = new URLSearchParams(location.search);
+    const room = params.get('room');
+
+    if (!room) {
+      info.textContent = 'No room specified';
+    }
+
+    let pc, ws;
+
+    function update(t){ info.textContent = t; }
+
+    function connectWS() {
+      return new Promise((resolve, reject) => {
+        ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host);
+        ws.onopen = () => { ws.send(JSON.stringify({ type: 'join', role: 'viewer', room })); resolve(); };
+        ws.onerror = reject;
+        ws.onmessage = async (ev) => {
+          const msg = JSON.parse(ev.data);
+          if (msg.type === 'offer') {
+            pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+            pc.ontrack = (e) => { video.srcObject = e.streams[0]; };
+            pc.onicecandidate = (e) => {
+              if (e.candidate) ws.send(JSON.stringify({ type: 'ice-candidate', candidate: e.candidate }));
+            };
+            await pc.setRemoteDescription(new RTCSessionDescription({ type: 'offer', sdp: msg.sdp }));
+            const answer = await pc.createAnswer();
+            await pc.setLocalDescription(answer);
+            ws.send(JSON.stringify({ type: 'answer', sdp: answer.sdp }));
+            update('Connected to sender');
+          } else if (msg.type === 'ice-candidate' && msg.candidate) {
+            try { await pc.addIceCandidate(msg.candidate); } catch {}
+          } else if (msg.type === 'sender-disconnected') {
+            update('Sender disconnected');
+            try { pc?.close(); } catch {}
+          } else if (msg.type === 'sender-ready') {
+            update('Waiting for offer...');
+          } else if (msg.type === 'error') {
+            update('Error: ' + (msg.reason || 'unknown'));
+          }
+        };
+      });
+    }
+
+    (async () => {
+      if (!room) return;
+      try { await connectWS(); update('Joined room ' + room); } catch { update('Failed to connect'); }
+    })();
+  </script>
+</body>
+</html>
