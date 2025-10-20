@@ -13,7 +13,7 @@
     <div id="overlay" style="display:none; margin: 12px 0;">
       <button id="play">Tap to start</button>
     </div>
-    <video id="remote" autoplay playsinline muted></video>
+    <video id="remote" autoplay playsinline controls></video>
   </main>
 
   <script>
@@ -24,6 +24,8 @@
     const params = new URLSearchParams(location.search);
     const DEFAULT_ROOM = 'live';
     const room = params.get('room') || DEFAULT_ROOM;
+    // Allow autoplay; unmute after user gesture
+    video.muted = true;
 
     let pc, ws;
 
@@ -38,10 +40,13 @@
           const msg = JSON.parse(ev.data);
           if (msg.type === 'offer') {
             pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+            const tryPlay = async () => {
+              try { await video.play(); overlay.style.display = 'none'; }
+              catch { overlay.style.display = 'block'; }
+            };
             pc.ontrack = (e) => {
               video.srcObject = e.streams[0];
-              // Try autoplay on mobile
-              video.play().catch(() => { overlay.style.display = 'block'; });
+              tryPlay();
             };
             pc.onicecandidate = (e) => {
               if (e.candidate) ws.send(JSON.stringify({ type: 'ice-candidate', candidate: e.candidate }));
@@ -66,13 +71,13 @@
     }
 
     playBtn?.addEventListener('click', async () => {
-      try { await video.play(); overlay.style.display = 'none'; } catch {}
+      try { video.muted = false; await video.play(); overlay.style.display = 'none'; } catch {}
     });
-    video.addEventListener('click', async () => { try { await video.play(); } catch {} });
+    video.addEventListener('click', async () => { try { video.muted = false; await video.play(); } catch {} });
 
     (async () => {
       if (!room) return;
-      try { await connectWS(); update('Joined room ' + room); } catch { update('Failed to connect'); }
+      try { await connectWS(); update('Waiting for sender...'); } catch { update('Failed to connect'); }
     })();
   </script>
 </body>
