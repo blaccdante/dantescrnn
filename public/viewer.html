@@ -52,7 +52,7 @@
               if (e.candidate) ws.send(JSON.stringify({ type: 'ice-candidate', candidate: e.candidate }));
             };
             await pc.setRemoteDescription(new RTCSessionDescription({ type: 'offer', sdp: msg.sdp }));
-            const answer = await pc.createAnswer();
+            const answer = await pc.createAnswer({ offerToReceiveVideo: true, offerToReceiveAudio: true });
             await pc.setLocalDescription(answer);
             ws.send(JSON.stringify({ type: 'answer', sdp: answer.sdp }));
             update('Connected to sender');
