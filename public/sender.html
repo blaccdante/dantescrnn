@@ -82,23 +82,8 @@
         updateStatus('Dante Screen live');
 
         pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
-
-        // Hint this is screen content and prefer broadly supported codecs (VP8, then H264)
-        try { stream.getVideoTracks()[0].contentHint = 'detail'; } catch {}
+        // Add tracks as-is for maximum compatibility
         stream.getTracks().forEach(t => pc.addTrack(t, stream));
-        try {
-          const caps = RTCRtpSender.getCapabilities ? RTCRtpSender.getCapabilities('video') : null;
-          if (caps && caps.codecs) {
-            const prefer = [];
-            const find = (mt) => caps.codecs.find(c => (c.mimeType || '').toLowerCase() === mt);
-            const vp8 = find('video/vp8');
-            const h264 = find('video/h264');
-            if (vp8) prefer.push(vp8);
-            if (h264) prefer.push(h264);
-            const vt = pc.getTransceivers().find(t => t.sender?.track?.kind === 'video');
-            if (vt && vt.setCodecPreferences && prefer.length) vt.setCodecPreferences(prefer);
-          }
-        } catch {}
 
         pc.onicecandidate = (e) => {
           if (e.candidate) ws.send(JSON.stringify({ type: 'ice-candidate', candidate: e.candidate }));

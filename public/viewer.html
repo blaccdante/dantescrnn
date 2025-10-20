@@ -44,6 +44,8 @@
               try { await video.play(); overlay.style.display = 'none'; }
               catch { overlay.style.display = 'block'; }
             };
+            // Ensure video transceiver exists (helps some browsers)
+            try { pc.addTransceiver('video'); } catch {}
             pc.ontrack = (e) => {
               video.srcObject = e.streams[0];
               tryPlay();
@@ -52,7 +54,7 @@
               if (e.candidate) ws.send(JSON.stringify({ type: 'ice-candidate', candidate: e.candidate }));
             };
             await pc.setRemoteDescription(new RTCSessionDescription({ type: 'offer', sdp: msg.sdp }));
-            const answer = await pc.createAnswer({ offerToReceiveVideo: true, offerToReceiveAudio: true });
+            const answer = await pc.createAnswer();
             await pc.setLocalDescription(answer);
             ws.send(JSON.stringify({ type: 'answer', sdp: answer.sdp }));
             update('Connected to sender');
