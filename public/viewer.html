@@ -39,7 +39,13 @@
         ws.onmessage = async (ev) => {
           const msg = JSON.parse(ev.data);
           if (msg.type === 'offer') {
-            pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+            let iceServers = [{ urls: 'stun:stun.l.google.com:19302' }];
+            try {
+              const r = await fetch('/config');
+              const cfg = await r.json();
+              if (Array.isArray(cfg.iceServers)) iceServers = cfg.iceServers;
+            } catch {}
+            pc = new RTCPeerConnection({ iceServers });
             const tryPlay = async () => {
               try { await video.play(); overlay.style.display = 'none'; }
               catch { overlay.style.display = 'block'; }
