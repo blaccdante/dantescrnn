@@ -28,6 +28,8 @@
     video.muted = true;
 
     let pc, ws;
+    const paramsAll = new URLSearchParams(location.search);
+    const forceRelay = paramsAll.get('relay') === '1';
 
     function update(t){ info.textContent = t; }
 
@@ -45,7 +47,7 @@
               const cfg = await r.json();
               if (Array.isArray(cfg.iceServers)) iceServers = cfg.iceServers;
             } catch {}
-            pc = new RTCPeerConnection({ iceServers });
+            pc = new RTCPeerConnection({ iceServers, iceTransportPolicy: forceRelay ? 'relay' : 'all' });
             const tryPlay = async () => {
               try { await video.play(); overlay.style.display = 'none'; }
               catch { overlay.style.display = 'block'; }

@@ -36,6 +36,30 @@
 
     let pc, ws, stream;
 
+    function preferVideoCodec(sdp, codec) {
+      try {
+        const lines = sdp.split('\n');
+        const mLineIndex = lines.findIndex(l => l.startsWith('m=video'));
+        if (mLineIndex === -1) return sdp;
+        const rtpmap = new Map();
+        for (const l of lines) {
+          const m = l.match(/^a=rtpmap:(\d+)\s+([^/]+)/);
+          if (m) rtpmap.set(m[1], m[2].toUpperCase());
+        }
+        const parts = lines[mLineIndex].trim().split(' ');
+        const header = parts.slice(0, 3);
+        const payloads = parts.slice(3);
+        const preferred = [];
+        const others = [];
+        for (const pt of payloads) {
+          const name = (rtpmap.get(pt) || '').toUpperCase();
+          if (name.includes(codec.toUpperCase())) preferred.push(pt); else others.push(pt);
+        }
+        lines[mLineIndex] = [...header, ...preferred, ...others].join(' ');
+        return lines.join('\n');
+      } catch { return sdp; }
+    }
+
     function updateStatus(t){ statusEl.textContent = t; }
 
     function viewerLink(){
@@ -81,7 +105,14 @@
         preview.srcObject = stream;
         updateStatus('Dante Screen live');
 
-        pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+        let iceServers = [{ urls: 'stun:stun.l.google.com:19302' }];
+        try {
+          const r = await fetch('/config');
+          const cfg = await r.json();
+          if (Array.isArray(cfg.iceServers)) iceServers = cfg.iceServers;
+        } catch {}
+        const forceRelay = (new URLSearchParams(location.search)).get('relay') === '1';
+        pc = new RTCPeerConnection({ iceServers, iceTransportPolicy: forceRelay ? 'relay' : 'all' });
         // Add tracks as-is for maximum compatibility
         stream.getTracks().forEach(t => pc.addTrack(t, stream));
 
@@ -89,7 +120,10 @@
           if (e.candidate) ws.send(JSON.stringify({ type: 'ice-candidate', candidate: e.candidate }));
         };
 
-        const offer = await pc.createOffer();
+        let offer = await pc.createOffer();
+        // Prefer VP8 to avoid black video on some mobile browsers
+        const munged = preferVideoCodec(offer.sdp, 'VP8');
+        offer = new RTCSessionDescription({ type: 'offer', sdp: munged });
         await pc.setLocalDescription(offer);
         ws.send(JSON.stringify({ type: 'offer', sdp: offer.sdp }));
         updateStatus('Live — copy viewer link to watch');
