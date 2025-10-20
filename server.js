@@ -3,6 +3,7 @@ import http from 'http';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { WebSocketServer } from 'ws';
+import fetch from 'node-fetch';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -20,7 +21,8 @@ app.get('/config', async (_req, res) => {
     const domain = process.env.METERED_DOMAIN;
     const apiKey = process.env.METERED_API_KEY;
     if (domain && apiKey) {
-      const url = `https://${domain}.metered.live/api/v1/turn/credentials?apiKey=${encodeURIComponent(apiKey)}`;
+      const host = domain.includes('.') ? domain : `${domain}.metered.live`;
+      const url = `https://${host}/api/v1/turn/credentials?apiKey=${encodeURIComponent(apiKey)}`;
       const r = await fetch(url);
       if (r.ok) {
         const data = await r.json();
