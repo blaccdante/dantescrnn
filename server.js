@@ -14,6 +14,33 @@ app.get('/', (_req, res) => {
   res.redirect('/viewer.html?room=live');
 });
 
+// Provide ICE servers. If METERED_* is set, proxy credentials from Metered; else fall back to static TURN_* vars.
+app.get('/config', async (_req, res) => {
+  try {
+    const domain = process.env.METERED_DOMAIN;
+    const apiKey = process.env.METERED_API_KEY;
+    if (domain && apiKey) {
+      const url = `https://${domain}.metered.live/api/v1/turn/credentials?apiKey=${encodeURIComponent(apiKey)}`;
+      const r = await fetch(url);
+      if (r.ok) {
+        const data = await r.json();
+        if (Array.isArray(data.iceServers)) return res.json({ iceServers: data.iceServers });
+      }
+    }
+  } catch (_) {
+    // ignore and fall back
+  }
+
+  const iceServers = [{ urls: 'stun:stun.l.google.com:19302' }];
+  const turnUrls = process.env.TURN_URL;
+  const turnUser = process.env.TURN_USERNAME;
+  const turnCred = process.env.TURN_CREDENTIAL;
+  if (turnUrls && turnUser && turnCred) {
+    iceServers.push({ urls: turnUrls.split(',').map(u => u.trim()), username: turnUser, credential: turnCred });
+  }
+  res.json({ iceServers });
+});
+
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server });
 
